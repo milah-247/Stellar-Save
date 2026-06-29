@@ -67,6 +67,10 @@ Follow the step-by-step guide in [demo/demo-script.md](demo/demo-script.md)
 - [Storage Layout](docs/storage-layout.md)
 - [Threat Model & Security](docs/threat-model.md)
 - [Roadmap](docs/roadmap.md)
+- [Funnel & Cohort Analytics](docs/funnel-analytics.md)
+- [Design Token System](docs/design-tokens.md)
+- [ZK Verification](docs/zk-verification.md)
+- [Bug Bounty Program](security/BUG_BOUNTY.md)
 
 ## 🎓 Smart Contract API
 
