@@ -213,4 +213,98 @@ mod tests {
             contribution_cycle_1.cycle_number
         );
     }
+
+    // ── Boundary / overflow regression tests (issue #1718) ────────────────────
+    //
+    // These tests verify that boundary values are handled safely. Overflow-checks
+    // are enabled in the release profile (see root Cargo.toml [profile.release]).
+    // Any arithmetic that would overflow at these boundary values must use
+    // checked_add / checked_sub instead of raw operators.
+
+    /// Maximum valid i128 amount should be accepted without overflow.
+    #[test]
+    fn test_amount_i128_max() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        let amount = i128::MAX;
+        let contribution = ContributionRecord::new(member, 1, 0, amount, 0);
+        assert_eq!(contribution.amount, i128::MAX);
+        assert!(contribution.validate());
+    }
+
+    /// amount = 1 (minimum valid positive value) is accepted.
+    #[test]
+    fn test_amount_minimum_valid() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        let contribution = ContributionRecord::new(member, 1, 0, 1, 0);
+        assert_eq!(contribution.amount, 1);
+        assert!(contribution.validate());
+    }
+
+    /// amount = -1 must be rejected (below zero).
+    #[test]
+    #[should_panic(expected = "amount must be greater than 0")]
+    fn test_amount_negative_rejected() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        ContributionRecord::new(member, 1, 0, -1, 0);
+    }
+
+    /// amount = i128::MIN must be rejected.
+    #[test]
+    #[should_panic(expected = "amount must be greater than 0")]
+    fn test_amount_i128_min_rejected() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        ContributionRecord::new(member, 1, 0, i128::MIN, 0);
+    }
+
+    /// group_id = u64::MAX is a valid boundary — group IDs are plain keys and
+    /// require no arithmetic, so this must not panic.
+    #[test]
+    fn test_group_id_u64_max() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        let contribution = ContributionRecord::new(member, u64::MAX, 0, 10_000_000, 0);
+        assert_eq!(contribution.group_id, u64::MAX);
+        assert!(contribution.validate());
+    }
+
+    /// cycle_number = u32::MAX is a valid boundary.
+    #[test]
+    fn test_cycle_number_u32_max() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        let contribution = ContributionRecord::new(member, 1, u32::MAX, 10_000_000, 0);
+        assert_eq!(contribution.cycle_number, u32::MAX);
+        assert!(contribution.validate());
+    }
+
+    /// timestamp = u64::MAX is a valid boundary.
+    #[test]
+    fn test_timestamp_u64_max() {
+        let env = Env::default();
+        let member = Address::generate(&env);
+        let contribution = ContributionRecord::new(member, 1, 0, 10_000_000, u64::MAX);
+        assert_eq!(contribution.timestamp, u64::MAX);
+        assert!(contribution.validate());
+    }
+
+    /// Validate that two maximum-amount contributions can be stored independently
+    /// without any inter-record arithmetic overflow.
+    #[test]
+    fn test_two_max_amount_contributions_independent() {
+        let env = Env::default();
+        let member1 = Address::generate(&env);
+        let member2 = Address::generate(&env);
+
+        let c1 = ContributionRecord::new(member1, 1, 0, i128::MAX, 0);
+        let c2 = ContributionRecord::new(member2, 1, 0, i128::MAX, 0);
+
+        // Each record is independently valid; no cross-record addition is performed.
+        assert!(c1.validate());
+        assert!(c2.validate());
+        assert_ne!(c1.member_address, c2.member_address);
+    }
 }

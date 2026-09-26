@@ -1605,7 +1605,8 @@ impl StellarSaveContract {
         let mut sequence = Vec::new(&env);
         for i in 0..positions.len() {
             let position = positions.get(i).unwrap();
-            sequence.push_back(member_vec.get(position).unwrap().clone());
+            // `Vec::get` already returns an owned value; no extra clone needed (issue #1716).
+            sequence.push_back(member_vec.get(position).unwrap());
         }
 
         env.storage().persistent().set(&sequence_key, &sequence);
@@ -5249,7 +5250,9 @@ impl StellarSaveContract {
 
         // On-time rate: contributed cycles / total cycles so far * 100
         let on_time_rate = if group.current_cycle > 0 {
-            (cycles_contributed * 100) / group.current_cycle
+            // Widen to u64 so `* 100` cannot overflow u32 (issue #1718);
+            // the quotient is always <= 100 so narrowing back is lossless.
+            ((cycles_contributed as u64 * 100) / group.current_cycle as u64) as u32
         } else {
             100 // No cycles yet — considered 100%
         };
